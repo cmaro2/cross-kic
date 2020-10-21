@@ -1,4 +1,7 @@
 import pandas as pd
+import geopandas
+import time
+
 from read_shapeFile import loadShapeFile
 import numpy as np
 
@@ -17,8 +20,17 @@ parcelas = loadShapeFile('data/NDVI/SHAPE_NDVI/EsAytMadridSCartSAT2018OtIndVegDi
 peatonal = loadShapeFile('data/NDVI/SHAPE_NDVI/EsAytMadridSCartSAT2018OtIndVegDifNDVISemestAnualTMnPeatonalSphETRS89.shp')
 usos = loadShapeFile('data/NDVI/SHAPE_NDVI/EsAytMadridSCartSAT2018OtIndVegDifNDVISemestAnualTMnUsosSphETRS89.shp')
 
+tic = time.clock()
+
 NVDI = []
 for i in range(len(census_inhabitants.index)):
+    # Calcualte process time
+    if ((i + 1) % 5 == 0):
+        toc = time.clock()
+        print('Done with ' + str(i + 1) + '/' + str(
+            len(census_inhabitants.index)) + ' census. Time in this cicle: ' + str(toc - tic))
+        tic = time.clock()
+
     seccionesCensal_polygon = census_inhabitants['geometry'][i]
     nvdi_area = 0
     area = 0
@@ -39,12 +51,18 @@ for i in range(len(census_inhabitants.index)):
             area += parcelas['geometry'][j].area
 
     for j in range(len(usos.index)):
-        if seccionesCensal_polygon.within(usos['geometry'][j]):
-            nvdi_area += usos['NDVIOt18_M'][j] * usos['geometry'][j].area
-            area += usos['geometry'][j].area
+        if j > 1:
+            if seccionesCensal_polygon.within(usos['geometry'][j]):
+                nvdi_area += usos['NDVIOt18_M'][j] * usos['geometry'][j].area
+                area += usos['geometry'][j].area
 
-    NVDI.append(nvdi_area/area)
+    try:
+        NVDI.append(nvdi_area / area)
+    except ZeroDivisionError:
+        NVDI.append(0)
 
-seccionesCensales_shp['NVDI'] =  np.array(NVDI)
+seccionesCensales_shp['NVDI'] = np.array(NVDI)
+seccionesCensales_shp = geopandas.GeoDataFrame(census_inhabitants, geometry='geometry')
+seccionesCensales_shp.to_file('out/index_NDVI.shp', driver='ESRI Shapefile')
 
 print('fin')

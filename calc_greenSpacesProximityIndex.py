@@ -1,107 +1,70 @@
 import pandas as pd
 import geopandas
+import numpy as np
 from read_shapeFile import loadShapeFile
 
-# Load ShapeFiles of green areas
-urbanGardens_shp = loadShapeFile('data/Carto_1000/11_HUERTO_URBANO_P.shp')
-gardenAreas_shp = loadShapeFile('data/Carto_1000/11_ZONA_AJARDINADA_P.shp')
-gardenInPatios_shp = loadShapeFile('data/Carto_1000/11_ZONA_AJARDINADA_SOBRE_PATIO_P.shp')
-
-# Crete arrays for the different calculated index
-urbanGardens_index = []
-gardenAreas_index = []
-gardenInPatios_index = []
-
-# Minimum distance to which other green areas are checked
-min_prox_dist = 200
-
-print('Starting Urban Gardens')
-for garden in urbanGardens_shp['geometry']:
-    distance = 10000
-
-    for urbanGarden_polygon in urbanGardens_shp['geometry']:
-        if (garden.distance(urbanGarden_polygon) < distance) and (garden.distance(urbanGarden_polygon) <= min_prox_dist):
-            distance = garden.distance(urbanGarden_polygon)
-
-    for idx, gardenArea_polygon in enumerate(gardenAreas_shp['geometry']):
-        if idx != 72:
-            if (garden.distance(gardenArea_polygon) < distance) and (garden.distance(gardenArea_polygon) <= min_prox_dist):
-                distance = garden.distance(gardenArea_polygon)
-
-    for gardenInPatio_polygon in gardenInPatios_shp['geometry']:
-        if (garden.distance(gardenInPatio_polygon) < distance) and (garden.distance(gardenInPatio_polygon) <= min_prox_dist):
-            distance = garden.distance(gardenInPatio_polygon)
-
-    if distance == 10000:
-        prox = 0
-    else:
+def proxToCensal(greenSpaces, censalAreas):
+    prox_avg = []
+    print('Starting calculations for proximity index inside censal areas')
+    for censal in censalAreas['geometry']:
+        sum = 0
+        num = 0
+        for i in range(len(greenSpaces.index)):
+            if censal.intersects(greenSpaces['geometry'][i]):
+                sum += greenSpaces['proximityIndex'][i]
+                num += 1
         try:
-            prox = garden.area/(distance * distance)
+            prox = sum / num
         except ZeroDivisionError:
-            prox = garden.area
-    urbanGardens_index.append(prox)
+            prox = 0
 
-print('Starting Garden Areas')
-for garden in gardenAreas_shp['geometry']:
-    distance = 10000
+        prox_avg.append(prox)
 
-    for urbanGarden_polygon in urbanGardens_shp['geometry']:
-        if (garden.distance(urbanGarden_polygon) < distance) and (garden.distance(urbanGarden_polygon) <= min_prox_dist):
-            distance = garden.distance(urbanGarden_polygon)
+    censalAreas['prox_avg'] = np.array(prox_avg)
+    censalAreas = geopandas.GeoDataFrame(censalAreas, geometry='geometry')
+    censalAreas.to_file('out/indexes.shp', driver='ESRI Shapefile')
 
-    for idx, gardenArea_polygon in enumerate(gardenAreas_shp['geometry']):
-        if idx != 72:
-            if (garden.distance(gardenArea_polygon) < distance) and (garden.distance(gardenArea_polygon) <= min_prox_dist):
-                distance = garden.distance(gardenArea_polygon)
+if __name__ == '__main__':
 
-    for gardenInPatio_polygon in gardenInPatios_shp['geometry']:
-        if (garden.distance(gardenInPatio_polygon) < distance) and (garden.distance(gardenInPatio_polygon) <= min_prox_dist):
-            distance = garden.distance(gardenInPatio_polygon)
+    # Load ShapeFiles of green areas and censal areas
+    greenSpaces = loadShapeFile('data/greenSpaces.shp')
+    censalAreas = loadShapeFile('out/indexes_try.shp')
 
-    if distance == 10000:
-        prox = 0
-    else:
-        try:
-            prox = garden.area/(distance * distance)
-        except ZeroDivisionError:
-            prox = garden.area
-    gardenAreas_index.append(prox)
+    # Crete arrays for the different calculated index
+    prox_index = []
 
-print('Starting Garden in Patios')
-for garden in gardenInPatios_shp['geometry']:
-    distance = 10000
+    # Minimum distance to which other green areas are checked
+    min_prox_dist = 200
 
-    for urbanGarden_polygon in urbanGardens_shp['geometry']:
-        if (garden.distance(urbanGarden_polygon) < distance) and (garden.distance(urbanGarden_polygon) <= min_prox_dist):
-            distance = garden.distance(urbanGarden_polygon)
+    print('Starting calculations for proximity index')
+    for idx, garden in enumerate(greenSpaces['geometry']):
+        distance = 10000
 
-    for idx, gardenArea_polygon in enumerate(gardenAreas_shp['geometry']):
-        if idx != 72:
-            if (garden.distance(gardenArea_polygon) < distance) and (garden.distance(gardenArea_polygon) <= min_prox_dist):
-                distance = garden.distance(gardenArea_polygon)
+        for i, green_area in enumerate(greenSpaces['geometry']):
+            if i != idx:
+                if (garden.distance(green_area) < distance) and (garden.distance(green_area) <= min_prox_dist):
+                    distance = garden.distance(green_area)
 
-    for gardenInPatio_polygon in gardenInPatios_shp['geometry']:
-        if (garden.distance(gardenInPatio_polygon) < distance) and (garden.distance(gardenInPatio_polygon) <= min_prox_dist):
-            distance = garden.distance(gardenInPatio_polygon)
+        if distance == 10000:
+            prox = 0
+        else:
+            try:
+                prox = garden.area/(distance * distance)
+            except ZeroDivisionError:
+                prox = garden.area
 
-    if distance == 10000:
-        prox = 0
-    else:
-        try:
-            prox = garden.area/(distance * distance)
-        except ZeroDivisionError:
-            prox = garden.area
-    gardenInPatios_index.append(prox)
+        prox_index.append(prox)
 
-print('Saving files')
+    print('Saving files')
 
-# Convert files to geoPandas GeoDataFrame and save them
-urbanGardens_shp = geopandas.GeoDataFrame(urbanGardens_shp, geometry='geometry')
-gardenAreas_shp = geopandas.GeoDataFrame(gardenAreas_shp, geometry='geometry')
-gardenInPatios_shp = geopandas.GeoDataFrame(gardenInPatios_shp, geometry='geometry')
+    # Convert files to geoPandas GeoDataFrame and save them
+    greenSpaces['proximityIndex'] = np.array(prox_index)
 
-urbanGardens_shp.to_file('out/urbanGardens.shp', driver='ESRI Shapefile')
-gardenAreas_shp.to_file('out/gardenAreas.shp', driver='ESRI Shapefile')
-gardenInPatios_shp.to_file('out/gardenInPatios.shp', driver='ESRI Shapefile')
+    greenSpaces = geopandas.GeoDataFrame(greenSpaces, geometry='geometry')
 
-print('Done')
+    greenSpaces.to_file('out/greenSpaces.shp', driver='ESRI Shapefile')
+
+    proxToCensal(greenSpaces, censalAreas)
+
+    print('Done')
+
