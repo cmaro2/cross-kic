@@ -1,5 +1,3 @@
-import pandas as pd
-import geopandas
 import numpy as np
 from read_shapeFile import loadShapeFile
 
@@ -21,15 +19,9 @@ def proxToCensal(greenSpaces, censalAreas):
         prox_avg.append(prox)
 
     censalAreas['prox_avg'] = np.array(prox_avg)
-    censalAreas = geopandas.GeoDataFrame(censalAreas, geometry='geometry')
-    censalAreas.to_file('out/indexes.shp', driver='ESRI Shapefile')
+    return censalAreas
 
-if __name__ == '__main__':
-
-    # Load ShapeFiles of green areas and censal areas
-    greenSpaces = loadShapeFile('data/greenSpaces.shp')
-    censalAreas = loadShapeFile('out/indexes_try.shp')
-
+def prox_Ind(greenSpaces):
     # Crete arrays for the different calculated index
     prox_index = []
 
@@ -60,11 +52,16 @@ if __name__ == '__main__':
     # Convert files to geoPandas GeoDataFrame and save them
     greenSpaces['proximityIndex'] = np.array(prox_index)
 
-    greenSpaces = geopandas.GeoDataFrame(greenSpaces, geometry='geometry')
+    print('Finished greenSpacesProximityIndex calculations')
 
-    greenSpaces.to_file('out/greenSpaces.shp', driver='ESRI Shapefile')
+    return greenSpaces
 
-    proxToCensal(greenSpaces, censalAreas)
+if __name__ == '__main__':
 
-    print('Done')
+    # Load ShapeFiles of green areas and censal areas
+    greenSpaces = loadShapeFile('data/greenSpaces.shp')
+    censalAreas = loadShapeFile('out/indexes_try.shp')
+
+    greenSpaces = prox_Ind(greenSpaces, censalAreas)
+
 

@@ -19,6 +19,7 @@ def loadGeojson(jsonpath):
     with open(jsonpath) as f:
         return json.load(f)
 
+
 def loadShapeFile(shpfilePath, changeToCoord = False):
     if not(os.path.exists(shpfilePath)):
         print("File, " + shpfilePath + "does not exist")
@@ -31,7 +32,5 @@ def loadShapeFile(shpfilePath, changeToCoord = False):
         return data
 
 
-
-
 if __name__ == '__main__':
-    ShapeFileToJson('out/indexes_NDVI.shp')
+    ShapeFileToJson('out/indexes.shp')
