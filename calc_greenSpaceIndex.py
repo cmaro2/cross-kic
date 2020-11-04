@@ -72,9 +72,9 @@ def indexes_calc(census_inhabitants, greenSpaces, buildSpaces):
             greenSpaceBuiltSpaceRatio.append(9999)
 
     # Add new columns to the ShapeFile containing the new calculated index
-    census_inhabitants['greenSpaceIndex'] = np.array(greenSpaceIndex)
-    census_inhabitants['greenSpaceDensity'] = np.array(greenSpaceDensity)
-    census_inhabitants['greenSpaceBuiltSpaceRatio'] = np.array(greenSpaceBuiltSpaceRatio)
+    census_inhabitants['GSIndex'] = np.array(greenSpaceIndex)
+    census_inhabitants['GSDensity'] = np.array(greenSpaceDensity)
+    census_inhabitants['GSBSRatio'] = np.array(greenSpaceBuiltSpaceRatio)
     return census_inhabitants
 
 if __name__ == '__main__':
