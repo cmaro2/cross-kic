@@ -6,15 +6,19 @@ import time
 import argparse
 from NDVI_sent import NDVI_img, calc_NDVI_census
 from calc_greenSpacesProximityIndex import prox_Ind, proxToCensal
+from create_green_build_spaces import green_build_join
+
 
 def arg_parse():
     parser = argparse.ArgumentParser(description='Data division so make 2 class into 1 class')
 
     # Datasets parameters
     parser.add_argument('--merge_green_spaces', type=int, default=0,
-                    help="1 if you need to merge green spaces into file, 0 if file is already merged.")
+                        help="1 if you need to merge green spaces into file, 0 if file is already merged.")
     parser.add_argument('--merge_build_spaces', type=int, default=0,
                         help="1 if you need to merge build spaces into file, 0 if file is already merged.")
+    parser.add_argument('--all_spaces', type=int, default=0,
+                        help="1 to merge into 1 all the files from all the districts.")
     parser.add_argument('--NDVI_img_out', type=str, default='out/ndviImage.tiff',
                         help="String containing the location to store the NDVI image file")
     parser.add_argument('--sent_B04', type=str, default='data/sentinel/sent_B04.jp2',
@@ -23,6 +27,7 @@ def arg_parse():
                         help="String containing the location to the sentinel2 image in the B08 band.")
     args = parser.parse_args()
     return args
+
 
 def indexes_calc(census_inhabitants, greenSpaces, buildSpaces):
     # Crete arrays for the different calculated index
@@ -34,7 +39,7 @@ def indexes_calc(census_inhabitants, greenSpaces, buildSpaces):
     # Loop to calcaulate the different indexes for each census area
     for i in range(len(census_inhabitants.index)):
         # Calcualte process time
-        if ((i + 1) % 100 == 0):
+        if ((i + 1) % 200 == 0):
             toc = time.clock()
             print('Done with ' + str(i + 1) + '/' + str(
                 len(census_inhabitants.index)) + ' census. Time in this cicle: ' + str(toc - tic))
@@ -45,15 +50,19 @@ def indexes_calc(census_inhabitants, greenSpaces, buildSpaces):
         built_space = 0
 
         # Calculate the area of green and build space for each census
-        for greenSpaces_polygon in greenSpaces['geometry']:
-            if greenSpaces_polygon.intersects(seccionesCensal_polygon):
-                # green_space += seccionesCensal_polygon.intersection(greenSpaces_polygon).area
-                green_space += greenSpaces_polygon.area
+        for idx, greenSpaces_polygon in enumerate(greenSpaces['geometry']):
+            try:
+                if greenSpaces_polygon.intersects(seccionesCensal_polygon):
+                    green_space += seccionesCensal_polygon.intersection(greenSpaces_polygon).area
+            except:
+                print('Ignored error in census number: ' + str(i) + ' and geometry number:' + str(idx))
 
-        for buildSpaces_polygon in buildSpaces['geometry']:
-            if buildSpaces_polygon.intersects(seccionesCensal_polygon):
-                # built_space += seccionesCensal_polygon.intersection(buildSpaces_polygon).area
-                built_space += buildSpaces_polygon.area
+        for id2, buildSpaces_polygon in enumerate(buildSpaces['geometry']):
+            try:
+                if buildSpaces_polygon.intersects(seccionesCensal_polygon):
+                    built_space += seccionesCensal_polygon.intersection(buildSpaces_polygon).area
+            except:
+                print('Ignored error in census number: ' + str(i) + ' and geometry number:' + str(id2))
 
         # Make the calculations for each index, if there is any division by 0, 9999 will be added instead of the division
         try:
@@ -77,6 +86,7 @@ def indexes_calc(census_inhabitants, greenSpaces, buildSpaces):
     census_inhabitants['GSBSRatio'] = np.array(greenSpaceBuiltSpaceRatio)
     return census_inhabitants
 
+
 if __name__ == '__main__':
     args = arg_parse()
     # Open censo xls file and remove unwanted rows
@@ -91,28 +101,14 @@ if __name__ == '__main__':
     census_inhabitants = census.rename({'Total': 'Inhabitants'}, axis=1)['Inhabitants']
     census_inhabitants = seccionesCensales_shp.join(census_inhabitants, on='CUSEC')
 
-    if args.merge_green_spaces:
-        # Load shapefiles of green and constructed areas
-        urbanGardens_shp = loadShapeFile('data/Carto_1000/11_HUERTO_URBANO_P.shp')
-        gardenAreas_shp = loadShapeFile('data/Carto_1000/11_ZONA_AJARDINADA_P.shp')
-        gardenInPatios_shp = loadShapeFile('data/Carto_1000/11_ZONA_AJARDINADA_SOBRE_PATIO_P.shp')
-        greenSpaces = pd.concat([urbanGardens_shp, gardenAreas_shp, gardenInPatios_shp])
-        greenSpaces.to_file('data/greenSpaces.shp', driver='ESRI Shapefile')
-
-    greenSpaces = loadShapeFile('data/greenSpaces.shp')
-
-    if args.merge_build_spaces:
-        buildings_shp = loadShapeFile('data/Carto_1000/03_EDIFICIO_EN_CONSTRUCCION_P.shp')
-        buildingsUnderConstruction_shp = loadShapeFile('data/Carto_1000/03_EDIFICIO_INDEFINIDO_P.shp')
-        undefinedBuildings_shp = loadShapeFile('data/Carto_1000/03_EDIFICIO_P.shp')
-        buildSpaces = pd.concat([buildings_shp, buildingsUnderConstruction_shp, undefinedBuildings_shp])
-        buildSpaces.to_file('data/buildSpaces.shp', driver='ESRI Shapefile')
+    green_build_join(args.all_spaces, args.merge_green_spaces, args.merge_build_spaces)
 
     buildSpaces = loadShapeFile('data/buildSpaces.shp')
+    greenSpaces = loadShapeFile('data/greenSpaces.shp')
 
     census_inhabitants = indexes_calc(census_inhabitants, greenSpaces, buildSpaces)
-    greenSpaces = prox_Ind(greenSpaces)
-    census_inhabitants = proxToCensal(greenSpaces, census_inhabitants)
+    #greenSpaces = prox_Ind(greenSpaces)
+    #census_inhabitants = proxToCensal(greenSpaces, census_inhabitants)
     NDVI_img(args.sent_B04, args.sent_B08, args.NDVI_img_out)
     census_inhabitants = calc_NDVI_census(census_inhabitants, args.NDVI_img_out)
 

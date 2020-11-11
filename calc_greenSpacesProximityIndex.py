@@ -1,6 +1,7 @@
 import numpy as np
 from read_shapeFile import loadShapeFile
 
+
 def proxToCensal(greenSpaces, censalAreas):
     prox_avg = []
     print('Starting calculations for proximity index inside censal areas')
