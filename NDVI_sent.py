@@ -8,7 +8,7 @@ import numpy as np
 import time
 from rasterio.mask import mask
 
-def calc_NDVI_census(census_inhabitants, img_NDVI):
+def calc_NDVI_section(section, img_NDVI):
     ndvi = rasterio.open(img_NDVI)
     tic = time.clock()
     ndvi_census = []
@@ -16,16 +16,16 @@ def calc_NDVI_census(census_inhabitants, img_NDVI):
     ndvi_min = []
     ndvi_max = []
 
-    for i in range(len(census_inhabitants.index)):
+    for i in range(len(section.index)):
         # Calcualte process time
         NDVI_calcs = []
         if ((i + 1) % 100 == 0):
             toc = time.clock()
             print('Done with ' + str(i + 1) + '/' + str(
-                len(census_inhabitants.index)) + ' census. Time in this cicle: ' + str(toc - tic))
+                len(section.index)) + ' census. Time in this cicle: ' + str(toc - tic))
             tic = time.clock()
 
-        NDVI_clipped, _ = rasterio.mask.mask(ndvi, [mapping(census_inhabitants['geometry'][i])], crop=True)
+        NDVI_clipped, _ = rasterio.mask.mask(ndvi, [mapping(section['geometry'][i])], crop=True)
         for y in NDVI_clipped[0]:
             for x in y:
                 if x != 0:
@@ -40,16 +40,16 @@ def calc_NDVI_census(census_inhabitants, img_NDVI):
         ndvi_min.append(min_NDVI)
         ndvi_max.append(max_NDVI)
 
-    census_inhabitants['NDVI'] = np.array(ndvi_census)
-    census_inhabitants['NDVI_var'] = np.array(ndvi_var)
-    census_inhabitants['NDVI_min'] = np.array(ndvi_min)
-    census_inhabitants['NDVI_max'] = np.array(ndvi_max)
+    section['NDVI'] = np.array(ndvi_census)
+    section['NDVI_var'] = np.array(ndvi_var)
+    section['NDVI_min'] = np.array(ndvi_min)
+    section['NDVI_max'] = np.array(ndvi_max)
     # Save results into a new ShapeFile
     print('Finished calculating NDVI')
 
-    return census_inhabitants
-    #census_inhabitants = geopandas.GeoDataFrame(census_inhabitants, geometry='geometry')
-    #census_inhabitants.to_file('out/indexes_NDVI.shp', driver='ESRI Shapefile')
+    return section
+    #section = geopandas.GeoDataFrame(section, geometry='geometry')
+    #section.to_file('out/indexes_NDVI.shp', driver='ESRI Shapefile')
 
 def NDVI_img(b4, b8, img_out):
     # Open each band using gdal
@@ -99,12 +99,12 @@ if __name__ == '__main__':
 
     # Combine the census population data with the ShapeFile of seccionesCensales
     seccionesCensales_shp = loadShapeFile('data/secciones_censales/SECC_CE_20200101_MADRID.shp')
-    census_inhabitants = census.rename({'Total': 'Inhabitants'}, axis=1)['Inhabitants']
-    census_inhabitants = seccionesCensales_shp.join(census_inhabitants, on='CUSEC')
+    section = census.rename({'Total': 'Inhabitants'}, axis=1)['Inhabitants']
+    section = seccionesCensales_shp.join(section, on='CUSEC')
 
     img_NDVI = 'out/ndviImage.tiff'
     b4 = 'data/sentinel/sent_B04.jp2'
     b8 = 'data/sentinel/sent_B08.jp2'
 
     NDVI_img(b4, b8, img_NDVI)
-    calc_NDVI_census(census_inhabitants, img_NDVI)
+    calc_NDVI_census(section, img_NDVI)

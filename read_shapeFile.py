@@ -33,4 +33,4 @@ def loadShapeFile(shpfilePath, changeToCoord = False):
 
 
 if __name__ == '__main__':
-    ShapeFileToJson('out/indexes.shp')
+    ShapeFileToJson('out/indexes_censal.shp')
