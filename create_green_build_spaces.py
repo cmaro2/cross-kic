@@ -10,10 +10,10 @@ def green_build_join(all_spaces, merge_green_spaces, merge_build_spaces):
         greenSpaces = pd.DataFrame([])
 
         for i in range(21):
-            if i < 10:
-                nums.append('D0'+str(i+1))
+            if i < 9:
+                nums.append('D0' + str(i+1))
             else:
-                nums.append('D' + str(i + 1))
+                nums.append('D' + str(i+1))
         print('Creating build spaces and green spaces from all the census areas')
         for folder in nums:
             is_green = 1

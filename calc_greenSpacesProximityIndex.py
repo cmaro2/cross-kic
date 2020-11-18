@@ -3,6 +3,52 @@ from read_shapeFile import loadShapeFile
 from time import process_time
 from rtree import index
 
+
+def greenProxInd(greenSpaces):
+    idx = index.Index()
+    min_prox_dist = 200
+    tic = process_time()
+    gsprox = []
+
+    # Populate R-tree index with greenSpaces
+    for pos, cell in enumerate(greenSpaces['geometry']):
+        idx.insert(pos, cell.bounds)
+
+    #Get circular buffers around greenSpaces
+    #centroids = greenSpaces.geometry.centroid
+    buffers = greenSpaces.geometry.buffer(min_prox_dist)
+
+    size = len(greenSpaces.index)
+    print('Starting calculations for greenSpaceProximity in greenSpaces')
+    for num, gsbase in enumerate(greenSpaces['geometry']):
+        distance = min_prox_dist
+        gsIndex = 0
+        if (num + 1) % round(size/10) == 0:
+            toc = process_time()
+            print('Green Proximity Index. Done with' + str(num + 1) + '/' + str(
+                size) + ' census. Time in this cicle: ' + str(toc - tic))
+            tic = process_time()
+
+        sub_green = [greenSpaces['geometry'][pos] for pos in idx.intersection(buffers[num].bounds) if pos != num]
+
+        for id1, green in enumerate(sub_green):
+            if green.distance(gsbase) < distance <= min_prox_dist:
+                distance = green.distance(gsbase)
+
+        if distance != min_prox_dist:
+            if distance > 1:
+                gsIndex = gsbase.area / (distance * distance)
+            else:
+                gsIndex = gsbase.area
+
+        gsprox.append(gsIndex)
+
+    greenSpaces['proxIndex'] = np.array(gsprox)
+    #greenSpaces.to_file('data/greenSpaces.shp', driver='ESRI Shapefile')
+    print('Finished calculations for greenSpaceProximity in greenSpaces')
+    return greenSpaces
+
+
 def proxGreenSection(sectionAreas, greenSpaces):
     idx = index.Index()
     min_prox_dist = 200
@@ -15,10 +61,10 @@ def proxGreenSection(sectionAreas, greenSpaces):
 
     for num, section in enumerate(sectionAreas['geometry']):
         sum = 0
-        if (num + 1) % round(len(sectionAreas.index)/10) == 0:
+        if (num + 1) % round(len(sectionAreas.index) / 10) == 0:
             toc = process_time()
             print('Done with' + str(num + 1) + '/' + str(
-                    len(sectionAreas.index)) + ' census. Time in this cicle: ' + str(toc - tic))
+                len(sectionAreas.index)) + ' census. Time in this cicle: ' + str(toc - tic))
             tic = process_time()
 
         sub_green = [greenSpaces['geometry'][pos] for pos in idx.intersection(section.bounds)]
@@ -35,7 +81,7 @@ def proxGreenSection(sectionAreas, greenSpaces):
                 except ZeroDivisionError:
                     sum += green.area
         try:
-            avg = sum/len(sub_green)
+            avg = sum / len(sub_green)
         except ZeroDivisionError:
             avg = 0
         gsprox.append(avg)
@@ -44,70 +90,30 @@ def proxGreenSection(sectionAreas, greenSpaces):
     return sectionAreas
 
 
-def proxToSection(greenSpaces, sectionAreas):
+def proxToSection(sectionAreas, greenSpaces):
     prox_avg = []
-
     print('Starting calculations for proximity index inside section areas')
+
+    idx = index.Index()
+    for pos, cell in enumerate(greenSpaces['geometry']):
+        idx.insert(pos, cell.bounds)
+
     for section in sectionAreas['geometry']:
-        sum = 0
+        total = 0
         num = 0
-        for i in range(len(greenSpaces.index)):
-            if section.intersects(greenSpaces['geometry'][i]):
-                sum += greenSpaces['proximityIndex'][i]
-                num += 1
+        greenInSection = [greenSpaces['proxIndex'][pos] for pos in idx.intersection(section.bounds)]
+        for ind in greenInSection:
+            total += ind
+            num += 1
+
         try:
-            prox = sum / num
+            prox = total / num
         except ZeroDivisionError:
             prox = 0
-
         prox_avg.append(prox)
 
     sectionAreas['prox_avg'] = np.array(prox_avg)
     return sectionAreas
-
-def prox_Ind(greenSpaces):
-    # Crete arrays for the different calculated index
-    prox_index = []
-    # Minimum distance to which other green areas are checked
-    min_prox_dist = 200
-    tic = process_time()
-
-    print('Starting calculations for proximity index')
-
-    for idx, garden in enumerate(greenSpaces['geometry']):
-        if ((idx + 1) % 5 == 0):
-            toc = process_time()
-            print('Done with ' + str(idx + 1) + '/' + str(
-                len(greenSpaces.index)) + ' census. Time in this cicle: ' + str(toc - tic))
-            tic = process_time()
-        distance = 200
-
-
-
-        for i, green_area in enumerate(greenSpaces['geometry']):
-            if i != idx:
-                distance = 1
-                if garden.distance(green_area) < distance <= min_prox_dist:
-                    distance = garden.distance(green_area)
-
-        if distance == 200:
-            prox = 0
-        else:
-            try:
-                prox = garden.area/(distance * distance)
-            except ZeroDivisionError:
-                prox = garden.area
-
-        prox_index.append(prox)
-
-    print('Saving files')
-
-    # Convert files to geoPandas GeoDataFrame and save them
-    greenSpaces['proximityIndex'] = np.array(prox_index)
-
-    print('Finished greenSpacesProximityIndex calculations')
-
-    return greenSpaces
 
 
 if __name__ == '__main__':
@@ -115,7 +121,8 @@ if __name__ == '__main__':
     # Load ShapeFiles of green areas and section areas
     greenSpaces = loadShapeFile('data/greenSpaces.shp')
     sectionAreas = loadShapeFile('out/indexes.shp')
-
-    greenSpaces = proxGreenSection(sectionAreas, greenSpaces)
-
-
+    tic = process_time()
+    sect = proxToSection(sectionAreas, greenSpaces)
+    toc = process_time()
+    print('Time:' + str(toc-tic))
+    #greenSpaces.to_file('data/greenSpaces.shp', driver='ESRI Shapefile')

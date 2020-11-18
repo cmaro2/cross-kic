@@ -1,8 +1,11 @@
 import numpy as np
 from time import process_time
+from read_shapeFile import loadShapeFile
+from get_seccions import get_secciones_censales
+from rtree import index
 
 
-def indexes_calc(seccion, greenSpaces, buildSpaces):
+def indexes_calc2(seccion, greenSpaces, buildSpaces):
     # Crete arrays for the different calculated index
     greenSpaceIndex = []
     greenSpaceDensity = []
@@ -41,17 +44,17 @@ def indexes_calc(seccion, greenSpaces, buildSpaces):
         try:
             greenSpaceIndex.append(green_space / seccion['Inhabitants'][i])
         except ZeroDivisionError:
-            greenSpaceIndex.append(9999)
+            greenSpaceIndex.append(100)
 
         try:
             greenSpaceDensity.append(green_space / seccion_polygon.area)
         except ZeroDivisionError:
-            greenSpaceDensity.append(9999)
+            greenSpaceDensity.append(100)
 
         try:
             greenSpaceBuiltSpaceRatio.append(green_space / built_space)
         except ZeroDivisionError:
-            greenSpaceBuiltSpaceRatio.append(9999)
+            greenSpaceBuiltSpaceRatio.append(100)
 
     # Add new columns to the ShapeFile containing the new calculated index
     seccion['GSIndex'] = np.array(greenSpaceIndex)
@@ -59,6 +62,69 @@ def indexes_calc(seccion, greenSpaces, buildSpaces):
     seccion['GSBSRatio'] = np.array(greenSpaceBuiltSpaceRatio)
     return seccion
 
+def indexes_calc(section, greenSpaces, buildSpaces):
+    # Crete arrays for the different calculated index
+    greenSpaceIndex = []
+    greenSpaceDensity = []
+    greenSpaceBuiltSpaceRatio = []
+    tic = process_time()
+    idxGreen = index.Index()
+    idxBuild = index.Index()
+
+    # Populate R-tree index with greenSpaces and buildSpaces
+
+    for pos, cell in enumerate(greenSpaces['geometry']):
+        idxGreen.insert(pos, cell.bounds)
+
+    for pos, cell in enumerate(buildSpaces['geometry']):
+        idxBuild.insert(pos, cell.bounds)
+
+    # Loop to calcaulate the different indexes for each census area
+    for i, sectionPolygon in enumerate(section['geometry']):
+        # Calcualte process time
+        if (i + 1) % round(len(section.index) / 10) == 0:
+            toc = process_time()
+            print('Done with ' + str(i + 1) + '/' + str(
+                len(section.index)) + ' census. Time in this cicle: ' + str(toc - tic))
+            tic = process_time()
+
+        green_space = 0
+        built_space = 0
+        sub_green = [greenSpaces['geometry'][pos] for pos in idxGreen.intersection(sectionPolygon.bounds)]
+        sub_build = [buildSpaces['geometry'][pos] for pos in idxBuild.intersection(sectionPolygon.bounds)]
+        # Calculate the area of green and build space for each census
+        for gs in sub_green:
+            green_space += sectionPolygon.intersection(gs.buffer(0)).area
+
+
+        for bs in sub_build:
+            built_space += sectionPolygon.intersection(bs.buffer(0)).area
+
+        try:
+            greenSpaceIndex.append(green_space / section['Inhabitants'][i])
+        except ZeroDivisionError:
+            greenSpaceIndex.append(100)
+
+        try:
+            greenSpaceDensity.append(green_space / sectionPolygon.area)
+        except ZeroDivisionError:
+            greenSpaceDensity.append(100)
+
+        try:
+            greenSpaceBuiltSpaceRatio.append(green_space / built_space)
+        except ZeroDivisionError:
+            greenSpaceBuiltSpaceRatio.append(100)
+
+    # Add new columns to the ShapeFile containing the new calculated index
+    section['GSIndex'] = np.array(greenSpaceIndex)
+    section['GSDensity'] = np.array(greenSpaceDensity)
+    section['GSBSRatio'] = np.array(greenSpaceBuiltSpaceRatio)
+    return section
+
 
 if __name__ == '__main__':
-    print('fin')
+    greenSpaces = loadShapeFile('data/greenSpaces.shp')
+    buildSpaces = loadShapeFile('data/buildSpaces.shp')
+    sectionAreas = get_secciones_censales()
+    sect = indexes_calc2(sectionAreas, greenSpaces, buildSpaces)
+

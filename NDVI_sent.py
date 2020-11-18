@@ -19,9 +19,9 @@ def calc_NDVI_section(section, img_NDVI):
     for i in range(len(section.index)):
         # Calcualte process time
         NDVI_calcs = []
-        if ((i + 1) % 100 == 0):
+        if ((i + 1) % round(len(section.index)/10) == 0):
             toc = time.clock()
-            print('Done with ' + str(i + 1) + '/' + str(
+            print('NDVI; Done with ' + str(i + 1) + '/' + str(
                 len(section.index)) + ' census. Time in this cicle: ' + str(toc - tic))
             tic = time.clock()
 
@@ -107,4 +107,4 @@ if __name__ == '__main__':
     b8 = 'data/sentinel/sent_B08.jp2'
 
     NDVI_img(b4, b8, img_NDVI)
-    calc_NDVI_census(section, img_NDVI)
+    calc_NDVI_section(section, img_NDVI)

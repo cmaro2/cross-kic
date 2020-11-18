@@ -1,7 +1,6 @@
 import geopandas as gpd
 import os
 import json
-import matplotlib.pyplot as plt
 
 
 def ShapeFileToJson(shapeFilepath):
