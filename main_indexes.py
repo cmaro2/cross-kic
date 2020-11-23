@@ -23,9 +23,9 @@ def arg_parse():
                         help="1 to merge into 1 all the files from all the districts.")
     parser.add_argument('--get_census', type=int, default=0,
                         help="1 to do calculations for censal areas.")
-    parser.add_argument('--get_barrios', type=int, default=0,
+    parser.add_argument('--get_barrios', type=int, default=1,
                         help="1 to do calculations for barrios.")
-    parser.add_argument('--get_distritos', type=int, default=1,
+    parser.add_argument('--get_distritos', type=int, default=0,
                         help="1 to do calculations for districts.")
     parser.add_argument('--NDVI_img_out', type=str, default='out/ndviImage.tiff',
                         help="String containing the location to store the NDVI image file")
@@ -72,7 +72,7 @@ if __name__ == '__main__':
 
         # Save results into a new ShapeFile
         barrios = geopandas.GeoDataFrame(barrios, geometry='geometry')
-        barrios.set_crs(epsg=4326, inplace=True)
+        barrios.set_crs(epsg=25830, inplace=True)
         barrios.to_file('out/indexesBarrios.shp', driver='ESRI Shapefile')
         ShapeFileToJson('out/indexesBarrios.shp')
 
