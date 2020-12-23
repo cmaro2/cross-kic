@@ -32,4 +32,15 @@ def loadShapeFile(shpfilePath, changeToCoord = False):
 
 
 if __name__ == '__main__':
-    ShapeFileToJson('out/indexes_censal.shp')
+    data1 = loadShapeFile('out/indexesBarrios.shp', changeToCoord = False)
+    data1 = data1.to_crs('epsg:25830')
+    data2 = loadShapeFile('out/indexesCensal.shp', changeToCoord = False)
+    data3 = loadShapeFile('out/indexesDistritos.shp', changeToCoord=False)
+    #ShapeFileToJson('out/indexesBarrios.shp')
+    idx1 = data1.crs
+    idx2 = data2.crs
+    idx3 = data3.crs
+    data1.to_file('out/indexesBarrios.shp', driver='ESRI Shapefile')
+    ShapeFileToJson('out/indexesBarrios.shp')
+
+    print('hello')
